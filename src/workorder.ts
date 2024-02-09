@@ -47,12 +47,12 @@ export class WorkOrder {
    * @param {Array<number>} [requestIds] - The inspection IDs which the workorder should be linked to.
    * @return {Object} Returns Promise that represents an object describing the newly-created workorder
    */
-  create(wo_data: Object, inspectionIds?: Array<number>, requestIds?: Array<number>) {
+  async create(wo_data: Object, inspectionIds?: number[], requestIds?: number[]) {
     return new Promise((resolve, reject) => {
       if(!_.has(wo_data, 'WOTemplateId') || !_.has(wo_data, 'EntityType')) {
         reject(new CWError(2, 'WOTemplateId & EntityType must be provided.', {'provided': wo_data}))
       } else {
-        var data = wo_data;
+        const data = wo_data;
         if(typeof inspectionIds != 'undefined' && inspectionIds != null && !_.has(data, 'InspectionIds')) {
           _.set(data, 'InspectionIds', inspectionIds);
         }
@@ -76,12 +76,12 @@ export class WorkOrder {
    * @param {string|number} workOrderSId - The workorder S/ID which the entities should be added to. # for SID, string for ID.
    * @return {Object} Returns Promise that represents an object describing the newly-created workorder
    */
-  createFromParent(wo_data: Object, workOrderSId: string|number, s: boolean = true) {
+  async createFromParent(wo_data: Object, workOrderSId: string|number) {
     return new Promise((resolve, reject) => {
       if(!_.has(wo_data, 'WOTemplateId') || !_.has(wo_data, 'EntityType')) {
         reject(new CWError(2, 'WOTemplateId & EntityType must be provided.', {'provided': wo_data}))
       } else {
-        var data = wo_data;
+        const data = wo_data;
         if(_.isString(workOrderSId)) {
           _.set(data, 'WorkOrderId', workOrderSId)
         } else {
@@ -103,12 +103,29 @@ export class WorkOrder {
    * @param {object} wo_data - See /{subdirectory}/apidocs/#/data-type-infodataType=WorkOrder on the Cityworks instance
    * @return {Object} Returns Promise that represents an object describing the updated workorder
    */
-  update(wo_data: Object) {
+  async createFromParent(wo_data: Object, workOrderSId: string|number) {
+    return new Promise((resolve, reject) => {
+      if(!_.has(wo_data, 'WOTemplateId') || !_.has(wo_data, 'EntityType')) {
+        reject(new CWError(2, 'WOTemplateId & EntityType must be provided.', {'provided': wo_data}))
+      } else {
+        const data = wo_data;
+        if(workOrderSId=== 'string') {
+          _.set(data, 'WorkOrderId', workOrderSId)
+        } else {
+          _.set(data, 'WorkOrderSid', workOrderSId)
+        }
+        await this.cw.runRequest('Ams/WorkOrder/Create', data).then(r => {
+          resolve(r.Value)
+        }).catch(e => {
+          reject(e)
+        })
+      }
+    })update(wo_data: Object) {
     return new Promise((resolve, reject) => {
       if(!_.has(wo_data, 'WorkOrderSid') && !_.has(wo_data, 'WorkOrderId')) {
         reject(new CWError(3, 'WorkOrderId or WorkOrderSid must be provided.', {'provided': wo_data}))
       } else {
-        this.cw.runRequest('Ams/WorkOrder/Update', wo_data).then(r => {
+       await this.cw.runRequest('Ams/WorkOrder/Update', wo_data).then(r => {
           resolve(r.Value)
         }).catch(e => {
           reject(e)
@@ -126,9 +143,9 @@ export class WorkOrder {
    * @param {boolean} cancelCombinedWorkOrders - If the WorkOrders combined into the single should then be canceled, default is true.
    * @return {Object} Returns object that represents a collection of WorkOrders
    */
-   combine(fromWorkOrderIds: Array<string>, toWorkOrderId: string, cancelCombinedWorkOrders: boolean = true) {
+  async combine(fromWorkOrderIds: string[], toWorkOrderId: string, cancelCombinedWorkOrders: boolean = true) {
      return new Promise((resolve, reject) => {
-       var data = {
+       const data = {
          CancelCombinedWorkOrders: cancelCombinedWorkOrders,
          ToWorkOrderId: toWorkOrderId,
          FromWorkOrderIds: fromWorkOrderIds
@@ -157,13 +174,13 @@ export class WorkOrder {
    * @param {number} [z] - Optional Z coordinate
    * @return {Object} Returns Promise that represents an object describing the updated workorder
    */
-  move(workOrderId: string, x: number, y: number, projection: Object, z?: number) {
+ async move(workOrderId: string, x: number, y: number, projection: Object, z?: number) {
     return new Promise((resolve, reject) => {
       if(!_.has(projection, 'WKID') && !_.has(projection, 'WKT')) {
         // Throw error
         reject(new CWError(6, 'You must provide either the WKID or WKT for the x/y coordinates.', {'projection': projection}))
       }
-      var base_data = {
+      const base_data = {
         WorkOrderId: workOrderId,
         X: x,
         Y: y
@@ -171,7 +188,7 @@ export class WorkOrder {
       if(typeof(z)!='undefined') {
         _.set(base_data, 'z', z)
       }
-      var data = _.merge(base_data, projection);
+      const data = _.merge(base_data, projection);
       this.cw.runRequest('Ams/WorkOrder/Move', data).then(r => {
         resolve(r.Value)
       }).catch(e => {
@@ -188,12 +205,12 @@ export class WorkOrder {
    * @param {boolean} s - Whether first argument is an SID (true) or an ID (false). Defaults to true.
    * @return {Object} Returns Promise that represents an object describing the workorder
    */
-  getById(workOrderSId: string|number, s: boolean = true) {
+  async getById(workOrderSId: string|number, s: boolean = true) {
     return new Promise((resolve, reject) => {
       var data = {}
       if(_.isString(workOrderSId)) {
         _.set(data, 'WorkOrderId', workOrderSId)
-        var path = 'Ams/WorkOrder/ById';
+        const path = 'Ams/WorkOrder/ById';
       } else {
         _.set(data, 'WorkOrderSid', workOrderSId)
         var path = 'Ams/WorkOrder/BySid';
@@ -213,7 +230,7 @@ export class WorkOrder {
    * @param {Array<string|number>} workOrderSIds - The workorder S/IDs to retrieve. If providing WorkOrderID, should be all strings, else provide all numbers for WorkOrderSID
    * @return {Object} Returns Promise that represents a collection of Objects describing the workorders
    */
-  getByIds(workOrderSIds: Array<string|number>) {
+  async getByIds(workOrderSIds: Array<string|number>) {
     return new Promise((resolve, reject) => {
       var data = {}
       if(workOrderSIds.length==0) {
@@ -247,14 +264,14 @@ export class WorkOrder {
    * @param {Array<string|number>} workOrderSIds - The workorder S/IDs to retrieve. If providing WorkOrderID, should be all strings, else provide all numbers for WorkOrderSID
    * @return {Object} Returns Promise that represents an array of String, String describing the workorder instructions
    */
-  getInstructions(workOrderSIds: Array<string|number>) {
+  async getInstructions(workOrderSIds: Array<string|number>) {
     return new Promise((resolve, reject) => {
       var data = {}
       if(workOrderSIds.length==0) {
         // throw error
         reject(new CWError(102, 'No workorder S/IDs were provided.', {'workorderSId': workOrderSIds}))
       } else {
-        var path = 'Ams/WorkOrder/ByIds';
+        const path = 'Ams/WorkOrder/ByIds';
         if(_.isString(workOrderSIds[0])) {
           _.set(data, 'WorkOrderIds', workOrderSIds)
           path = 'Ams/WorkOrder/InstructionsByWorkOrderIds';
@@ -281,7 +298,7 @@ export class WorkOrder {
    * @param {number} workOrderSId - A WorkOrder S/ID to get the audit log for. SID is default.
    * @return {Object} Returns Promise that represents a collection of Cityworks Metadata Objects
    */
-  getAuditLog(workOrderSId: number) {
+  async getAuditLog(workOrderSId: number) {
     return new Promise((resolve, reject) => {
       var data = {}
       if(_.isString(workOrderSId)) {
@@ -307,10 +324,10 @@ export class WorkOrder {
    * @param {Array<string|number>} workOrderSIds - The workorder S/IDs to retrieve. #s for SID, strings for ID.
    * @return {Object} Returns Promise that represents a collection of Objects describing the workorders
    */
-  getCustomFieldValues(workOrderSIds: Array<string|number>) {
+ async getCustomFieldValues(workOrderSIds: Array<string|number>) {
     return new Promise((resolve, reject) => {
       var data = {}
-      var path = 'Ams/WorkOrder/CustomFields';
+     const  path = 'Ams/WorkOrder/CustomFields';
       if(_.isString(workOrderSIds[0])) {
         _.set(data, 'WorkOrderIds', workOrderSIds)
         var path = 'Ams/WorkOrder/CustomFields';
@@ -337,7 +354,7 @@ export class WorkOrder {
    * @param {boolean} getGisData - Query gis to populate Entity.Attributes with current gis data. Defaults to true.
    * @return {Object} Returns object that represents a list of entities removed.
    */
-  getEntities(workOrderSIds: Array<string|number>, getGisData: boolean = true) {
+  async getEntities(workOrderSIds: Array<string|number>, getGisData: boolean = true) {
     return new Promise((resolve, reject) => {
       var data = {
         GetGisData: getGisData
@@ -375,7 +392,7 @@ export class WorkOrder {
    * @param {boolean} updateXY - Update WorkOrder xy after adding entit(y|ies), default is true.
    * @return {Object} Returns object that represents a list of entities removed.
    */
-   addEntities(workOrderSId: string|number, entityInfo: Object, updateXY: boolean = true) {
+   async addEntities(workOrderSId: string|number, entityInfo: Object, updateXY: boolean = true) {
      return new Promise((resolve, reject) => {
        var data = {
          UpdateXY: updateXY
@@ -417,7 +434,7 @@ export class WorkOrder {
     * @param {boolean} workComplete - Update WorkOrder completeness, default is true.
     * @return {Object} Returns object that represents a list of entities removed.
     */
-    updateEntity(workOrderSId: string|number, entityInfo: Object, workComplete: boolean = false) {
+   async updateEntity(workOrderSId: string|number, entityInfo: Object, workComplete: boolean = false) {
       return new Promise((resolve, reject) => {
         var data = {
           WorkComplete: workComplete
@@ -459,7 +476,7 @@ export class WorkOrder {
    * @param {boolean} updateXY - Update WorkOrder xy after removing entities, default is true.
    * @return {Object} Returns object that represents a list of entities removed.
    */
-   removeEntities(workOrderSId: string|number, entityInfo: Object, updateXY: boolean = true) {
+  async  removeEntities(workOrderSId: string|number, entityInfo: Object, updateXY: boolean = true) {
      return new Promise((resolve, reject) => {
        var data = {
          UpdateXY: updateXY
@@ -499,9 +516,8 @@ export class WorkOrder {
    * @param {datetime} [dateCancelled] - The date/time that it should be indicated the workorder was cancelled
    * @return {Object} Returns object that represents a collection of workorders
    */
-  cancel(workOrderIds: Array<number>, cancelReason?: string, dateCancelled?: Date) {
+  async cancel(workOrderIds: Array<number>, cancelReason?: string, dateCancelled?: Date) {
     return new Promise((resolve, reject) => {
-      var m = new Date()
       var data: {WorkOrderIds: Array<number>, CancelReason?: string, DateCancelled?: Date} = { WorkOrderIds: workOrderIds }
       if(typeof(cancelReason)!=='undefined')
         _.set(data, 'CancelReason', cancelReason);
@@ -522,9 +538,9 @@ export class WorkOrder {
    * @param {Array<number>} workOrderIds - An array of the IDs to uncancel the matched workorders
    * @return {Object} Returns object that represents a collection of workorders
    */
-   uncancel(workOrderIds: Array<number>) {
+  async uncancel(workOrderIds: Array<number>) {
      return new Promise((resolve, reject) => {
-       var data = {
+       const data = {
          WorkOrderIds: workOrderIds
        }
        this.cw.runRequest('Ams/WorkOrder/Uncancel', data).then(r => {
@@ -542,9 +558,9 @@ export class WorkOrder {
     * @param {Array<number>} workOrderIds - An array of the IDs to close the matched WorkOrders
     * @return {Object} Returns object that represents a collection of WorkOrders
     */
-    close(workOrderIds: Array<number>) {
+   async close(workOrderIds: Array<number>) {
       return new Promise((resolve, reject) => {
-        var data = {
+        const data = {
           WorkOrderIds: workOrderIds
         }
         this.cw.runRequest('Ams/WorkOrder/Close', data).then(r => {
@@ -566,9 +582,9 @@ export class WorkOrder {
      * @param {Array<number>} workOrderIds - An array of the IDs to reopen the matched WorkOrders
      * @return {Object} Returns object that represents a collection of WorkOrders
      */
-     reopen(workOrderIds: Array<number>) {
+     async reopen(workOrderIds: Array<number>) {
        return new Promise((resolve, reject) => {
-         var data = {
+         const data = {
            WorkOrderIds: workOrderIds
          }
          this.cw.runRequest('Ams/WorkOrder/ReOpen', data).then(r => {
@@ -588,7 +604,7 @@ export class WorkOrder {
    */
    delete(workOrderIds: Array<number>) {
      return new Promise((resolve, reject) => {
-       var data = {
+       const data = {
          WorkOrderIds: workOrderIds
        }
        this.cw.runRequest('Ams/WorkOrder/Delete', data).then(r => {
@@ -613,7 +629,7 @@ export class WorkOrder {
     * @param {Object} [search] - Any additional search properties of the WorkOrder (open/closed, etc)
     * @return {Object} Returns Promise that represents an array of WorkOrderS/IDs
     */
-   getWOsByEntities(entityType: string, entityUids: Array<string>, search?: Array<string|number>, s: boolean = true) {
+  async getWOsByEntities(entityType: string, entityUids: Array<string>, search?: Array<string|number>, s: boolean = true) {
      return new Promise((resolve, reject) => {
        var data = {}
        if(typeof(search)!='undefined') {
@@ -627,7 +643,7 @@ export class WorkOrder {
        }
        var path = 'Ams/WorkOrder/SearchForSids'
        if(!s) {
-         path = 'Ams/WorkOrder/Search'
+        const path = 'Ams/WorkOrder/Search'
        }
        this.cw.runRequest(path, data).then(r => {
          if(r.Status>0) {
@@ -648,7 +664,7 @@ export class WorkOrder {
     * @param {string} workOrderId - The WorkOrderId for which to get the WorkOrderSid and description
     * @return {Object} Returns Promise that represents an object with WorkOrderS/IDs & Description
     */
-   getSearchList(workOrderId: string) {
+   async getSearchList(workOrderId: string) {
      return new Promise((resolve, reject) => {
        var data = {}
        _.set(data, 'WorkOrderId', workOrderId)
@@ -673,7 +689,7 @@ export class WorkOrder {
     * @param {Array<number>} [domainIds] - Filter to certain domains within the Cityworks instance.
     * @return {Object} Returns Promise that represents a collection of employees. See: /{subdirectory}/apidocs/#/data-type-info;dataType=EmployeeNameId
     */
-   getEmployeeLists(listType: string, includeInactiveEmployees: boolean = false, domainIds?: Array<number>) {
+  async getEmployeeLists(listType: string, includeInactiveEmployees: boolean = false, domainIds?: Array<number>) {
      return new Promise((resolve, reject) => {
        var data = {
          IncludeInactiveEmployees: includeInactiveEmployees
@@ -713,7 +729,7 @@ export class WorkOrder {
     * @param {Array<number>} [domainIds] - Filter to certain domains within the Cityworks instance.
     * @return {Object} Returns Promise that represents a collection of employees. See: /{subdirectory}/apidocs/#/data-type-info;dataType=EmployeeNameId
     */
-   getSupervisors(includeInactiveEmployees: boolean = false, domainIds?: Array<number>) {
+  async getSupervisors(includeInactiveEmployees: boolean = false, domainIds?: Array<number>) {
      return this.getEmployeeLists('Supervisors', includeInactiveEmployees, domainIds);
    }
 
@@ -723,7 +739,7 @@ export class WorkOrder {
     * @category WorkOrder Options
     * @return {Object} Returns Promise that represents a collection of codes. See: /{subdirectory}/apidocs/#/data-type-info;dataType=CodeDesc
     */
-   getStatuses() {
+  async getStatuses() {
      return new Promise((resolve, reject) => {
        this.cw.runRequest('Ams/WorkOrder/Statuses', {}).then(r => {
          resolve(r.Value)
@@ -739,7 +755,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of configured workorder category code descriptions
    */
-  getCategories() {
+ async getCategories() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/Categories', {}).then(r => {
         resolve(r.Value)
@@ -755,7 +771,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of configured workorder priorities
    */
-  getPriorities() {
+async getPriorities() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/Priorities', {}).then(r => {
         resolve(r.Value)
@@ -771,7 +787,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of string/string Cycle From options for workorders
    */
-  getCycleFrom() {
+async getCycleFrom() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/CycleFrom', {}).then(r => {
         resolve(r.Value)
@@ -787,7 +803,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of string/string Cycle Interval options for workorders
    */
-  getCycleIntervals() {
+ async getCycleIntervals() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/CycleIntervals', {}).then(r => {
         resolve(r.Value)
@@ -803,7 +819,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of string/string Cycle Type options for workorders
    */
-  getCycleTypes() {
+ async getCycleTypes() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/CycleTypes', {}).then(r => {
         resolve(r.Value)
@@ -819,7 +835,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of string/string Stage options for WorkOrders
    */
-  getStages() {
+ async getStages() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/Stages', {}).then(r => {
         resolve(r.Value)
@@ -835,7 +851,7 @@ export class WorkOrder {
    * @category WorkOrder Options
    * @return {Object} Returns Promise that represents an array of string/string Expense Type options for workorders
    */
-  getExpenseTypes() {
+ async getExpenseTypes() {
     return new Promise((resolve, reject) => {
       this.cw.runRequest('Ams/WorkOrder/ExpenseTypes', {}).then(r => {
         resolve(r.Value)
@@ -852,12 +868,12 @@ export class WorkOrder {
    * @param {string} workOrderSId - The workorder S/ID to get the map layer fields for.
    * @return {Object} Returns Promise that represents a collection of Objects describing the workorders
    */
-  getMLFs(workOrderSId: string) { // |number
+  async getMLFs(workOrderSId: string) { // |number
     return new Promise((resolve, reject) => {
       var data = {
         WorkOrderId: workOrderSId
       }
-      var path = 'Ams/TemplateMapLayer/WorkOrderInstanceMapLayersByWorkOrderId';
+      const path = 'Ams/TemplateMapLayer/WorkOrderInstanceMapLayersByWorkOrderId';
       this.cw.runRequest(path, data).then(r => {
         resolve(r.Value)
       }).catch(e => {
@@ -877,10 +893,10 @@ export class WorkOrder {
    * @param {number} [z] - Optional Z coordinate
    * @return {Object} Returns Promise that represents a ...
    */
-    updateMLFs(workOrderSId: string, x?: number, y?: number, domainId?: number, z?: number) { // |number
+    async updateMLFs(workOrderSId: string, x?: number, y?: number, domainId?: number, z?: number) { // |number
       return new Promise((resolve, reject) => {
         var data = {}
-        var path = 'Ams/TemplateMapLayer/UpdateWorkOrderInstanceMapLayers';
+        const path = 'Ams/TemplateMapLayer/UpdateWorkOrderInstanceMapLayers';
         if(_.isString(workOrderSId)) {
           _.set(data, 'WorkOrderId', workOrderSId)
         } else if(_.isNumber(workOrderSId)) {
@@ -916,12 +932,12 @@ export class WorkOrder {
    * @param {string} workOrderSId - The workorder S/ID to delete the map layer fields for.
    * @return {Object} Returns Promise that represents a collection of Objects describing the workorders
    */
-  deleteMLFs(workOrderSId: string) { // |number
+  async deleteMLFs(workOrderSId: string) { // |number
     return new Promise((resolve, reject) => {
-      var data = {
+      const  data = {
         WorkOrderId: workOrderSId
       }
-      var path = 'Ams/TemplateMapLayer/DeleteWorkOrderInstancesByWorkOrderId';
+      const  path = 'Ams/TemplateMapLayer/DeleteWorkOrderInstancesByWorkOrderId';
       this.cw.runRequest(path, data).then(r => {
         resolve(r.Value)
       }).catch(e => {
